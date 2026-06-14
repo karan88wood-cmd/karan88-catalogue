@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  --sand: #F5F0E8;
+  --warm-white: #FDFAF5;
+  --teak: #8B5E3C;
+  --teak-dark: #6B4428;
+  --teak-light: #C4956A;
+  --charcoal: #2C2420;
+  --muted: #9A8880;
+  --border: #E8DDD4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--warm-white);
+  color: var(--charcoal);
+  font-family: 'Georgia', serif;
+}
+
+.font-display {
+  font-family: 'Georgia', serif;
+  letter-spacing: -0.02em;
+}
+
+.font-ui {
+  font-family: system-ui, -apple-system, sans-serif;
+}
