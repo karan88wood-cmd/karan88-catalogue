@@ -1,4 +1,7 @@
-import { Product, inrToUsd, cmToInches } from '@/lib/supabase'
+'use client'
+
+import { useState } from 'react'
+import { Product, inrToUsd, cmToInches, getAllImages } from '@/lib/supabase'
 
 interface Props {
   product: Product
@@ -14,6 +17,9 @@ const SHOW_IN_LABELS: Record<string, string> = {
 }
 
 export default function ProductCard({ product, mode, onEdit, onDelete }: Props) {
+  const images = getAllImages(product)
+  const [activeImg, setActiveImg] = useState(0)
+
   const price = mode === 'importer'
     ? `$${inrToUsd(product.price_inr).toLocaleString()}`
     : mode === 'domestic'
@@ -34,9 +40,10 @@ export default function ProductCard({ product, mode, onEdit, onDelete }: Props) 
       onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)')}
       onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
     >
+      {/* Main photo */}
       <div style={{ height: '220px', background: 'var(--sand)', overflow: 'hidden', position: 'relative' }}>
-        {product.image_url
-          ? <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {images.length > 0
+          ? <img src={images[activeImg]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' }}>🪑</div>
         }
         <div style={{
@@ -54,6 +61,24 @@ export default function ProductCard({ product, mode, onEdit, onDelete }: Props) 
           }}>{SHOW_IN_LABELS[product.show_in || 'both']}</div>
         )}
       </div>
+
+      {/* Thumbnails */}
+      {images.length > 1 && (
+        <div style={{
+          display: 'flex', gap: '0.4rem', padding: '0.5rem 0.75rem',
+          background: 'var(--sand)', overflowX: 'auto',
+        }}>
+          {images.map((url, i) => (
+            <div key={i} onClick={() => setActiveImg(i)} style={{
+              width: '48px', height: '48px', flexShrink: 0, borderRadius: '4px', overflow: 'hidden',
+              cursor: 'pointer', border: activeImg === i ? '2px solid var(--teak)' : '2px solid transparent',
+              opacity: activeImg === i ? 1 : 0.65, transition: 'all 0.15s',
+            }}>
+              <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ padding: '1.1rem 1.25rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
         <h3 className="font-display" style={{ margin: '0 0 0.3rem', fontSize: '1.1rem', fontWeight: '400' }}>{product.name}</h3>
