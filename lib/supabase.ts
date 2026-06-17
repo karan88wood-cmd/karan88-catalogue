@@ -16,6 +16,7 @@ export type Product = {
   image_url: string | null
   image_urls: string[]
   show_in: 'both' | 'domestic' | 'importer'
+  sku: string
   created_at: string
 }
 
