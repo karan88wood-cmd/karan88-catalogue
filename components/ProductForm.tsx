@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { supabase, Product } from '@/lib/supabase'
+import { supabase, Product, getAllImages } from '@/lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
 
 interface Props {
@@ -19,19 +19,32 @@ export default function ProductForm({ product, onClose }: Props) {
   const [priceInr, setPriceInr] = useState(product?.price_inr?.toString() || '')
   const [dimensionsCm, setDimensionsCm] = useState(product?.dimensions_cm || '')
   const [description, setDescription] = useState(product?.description || '')
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState(product?.image_url || '')
   const [showIn, setShowIn] = useState<'both' | 'domestic' | 'importer'>(product?.show_in || 'both')
+  const [existingImages, setExistingImages] = useState<string[]>(product ? getAllImages(product) : [])
+  const [newFiles, setNewFiles] = useState<File[]>([])
+  const [newPreviews, setNewPreviews] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [generatingAI, setGeneratingAI] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const totalImages = existingImages.length + newFiles.length
+
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
+    const files = Array.from(e.target.files || [])
+    const allowed = 5 - totalImages
+    const toAdd = files.slice(0, allowed)
+    setNewFiles(prev => [...prev, ...toAdd])
+    setNewPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))])
+  }
+
+  function removeExisting(i: number) {
+    setExistingImages(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  function removeNew(i: number) {
+    setNewFiles(prev => prev.filter((_, idx) => idx !== i))
+    setNewPreviews(prev => prev.filter((_, idx) => idx !== i))
   }
 
   async function generateDescription() {
@@ -54,22 +67,28 @@ export default function ProductForm({ product, onClose }: Props) {
     if (!name || !material) { setError('Name and material are required.'); return }
     setSaving(true); setError('')
 
-    let finalImageUrl = product?.image_url || ''
-    if (imageFile) {
-      const ext = imageFile.name.split('.').pop()
+    // Upload new files
+    const uploadedUrls: string[] = []
+    for (const file of newFiles) {
+      const ext = file.name.split('.').pop()
       const fileName = `${uuidv4()}.${ext}`
-      const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, imageFile, { cacheControl: '3600', upsert: false })
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false })
       if (uploadError) { setError('Image upload failed: ' + uploadError.message); setSaving(false); return }
       const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName)
-      finalImageUrl = urlData.publicUrl
+      uploadedUrls.push(urlData.publicUrl)
     }
+
+    const allImages = [...existingImages, ...uploadedUrls]
 
     const productData = {
       name, material, category,
       price_inr: parseFloat(priceInr) || 0,
       dimensions_cm: dimensionsCm,
       description,
-      image_url: finalImageUrl || null,
+      image_url: allImages[0] || null,
+      image_urls: allImages,
       show_in: showIn,
     }
 
@@ -116,22 +135,40 @@ export default function ProductForm({ product, onClose }: Props) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+          {/* Photos */}
           <div>
-            <label style={labelStyle}>Product Photo</label>
-            <div onClick={() => fileInputRef.current?.click()} style={{
-              border: '2px dashed var(--border)', borderRadius: '6px', height: '160px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', overflow: 'hidden', background: 'var(--sand)',
-            }}>
-              {imagePreview
-                ? <img src={imagePreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <div style={{ textAlign: 'center', color: 'var(--muted)' }}>
-                    <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📷</div>
-                    <p className="font-ui" style={{ margin: 0, fontSize: '0.85rem' }}>Click to upload photo</p>
-                  </div>
-              }
+            <label style={labelStyle}>Photos ({totalImages}/5)</label>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+              {existingImages.map((url, i) => (
+                <div key={i} style={{ position: 'relative', width: '80px', height: '80px' }}>
+                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border)' }} />
+                  <button onClick={() => removeExisting(i)} style={{
+                    position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px',
+                    borderRadius: '50%', background: '#c0392b', color: 'white', border: 'none',
+                    cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>×</button>
+                </div>
+              ))}
+              {newPreviews.map((url, i) => (
+                <div key={i} style={{ position: 'relative', width: '80px', height: '80px' }}>
+                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--teak-light)' }} />
+                  <button onClick={() => removeNew(i)} style={{
+                    position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px',
+                    borderRadius: '50%', background: '#c0392b', color: 'white', border: 'none',
+                    cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>×</button>
+                </div>
+              ))}
+              {totalImages < 5 && (
+                <div onClick={() => fileInputRef.current?.click()} style={{
+                  width: '80px', height: '80px', border: '2px dashed var(--border)', borderRadius: '6px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', background: 'var(--sand)', color: 'var(--muted)', fontSize: '1.5rem',
+                }}>+</div>
+              )}
             </div>
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageChange} style={{ display: 'none' }} />
           </div>
 
           <div>
