@@ -16,6 +16,7 @@ export default function ProductForm({ product, onClose }: Props) {
   const [name, setName] = useState(product?.name || '')
   const [material, setMaterial] = useState(product?.material || 'Mango Wood')
   const [category, setCategory] = useState(product?.category || '')
+  const [sku, setSku] = useState(product?.sku || '')
   const [priceInr, setPriceInr] = useState(product?.price_inr?.toString() || '')
   const [dimensionsCm, setDimensionsCm] = useState(product?.dimensions_cm || '')
   const [description, setDescription] = useState(product?.description || '')
@@ -67,7 +68,6 @@ export default function ProductForm({ product, onClose }: Props) {
     if (!name || !material) { setError('Name and material are required.'); return }
     setSaving(true); setError('')
 
-    // Upload new files
     const uploadedUrls: string[] = []
     for (const file of newFiles) {
       const ext = file.name.split('.').pop()
@@ -83,7 +83,7 @@ export default function ProductForm({ product, onClose }: Props) {
     const allImages = [...existingImages, ...uploadedUrls]
 
     const productData = {
-      name, material, category,
+      name, material, category, sku,
       price_inr: parseFloat(priceInr) || 0,
       dimensions_cm: dimensionsCm,
       description,
@@ -135,7 +135,6 @@ export default function ProductForm({ product, onClose }: Props) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-
           {/* Photos */}
           <div>
             <label style={labelStyle}>Photos ({totalImages}/5)</label>
@@ -190,6 +189,11 @@ export default function ProductForm({ product, onClose }: Props) {
                 {CATEGORIES.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>SKU / Product Code</label>
+            <input value={sku} onChange={e => setSku(e.target.value)} placeholder="e.g. K88-DT-001" style={inputStyle} />
           </div>
 
           <div>
